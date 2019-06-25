@@ -14,7 +14,7 @@ import com.gusakov.library.internet.ping.Pinger
 @RequiresApi(Build.VERSION_CODES.N)
 class NetworkListener(context: Context, val networkAvailableCallBack: (connectedToWorld: Boolean) -> Unit) {
     private val conn = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    private var networkConnected = false
+    private var connectedToWorld: Boolean? = null
     private var networkAvailableInvoked = false
     private val pinger = Pinger.onAddress(GOOGLE).setNumberOfPackets(STANDARD_NUMBER_OF_PACKETS).setTimeoutSec(
         STANDARD_NUMBER_OF_PACKETS
@@ -31,15 +31,12 @@ class NetworkListener(context: Context, val networkAvailableCallBack: (connected
 
             override fun onLost(network: Network?) {
                 Log.v("internet", "onlost network=$network")
-                if (networkConnected) {
-                    networkConnected = false
-                    networkAvailableCallBack(false)
-                }
+                networkDisconnected()
             }
 
             override fun onLinkPropertiesChanged(network: Network?, linkProperties: LinkProperties?) {
                 Log.v("internet", "link properties changed. newtork = $network. linkproperties = $linkProperties")
-                if (!networkAvailableInvoked){
+                if (!networkAvailableInvoked) {
                     startPinging()
                 }
                 networkAvailableInvoked = false
@@ -54,7 +51,7 @@ class NetworkListener(context: Context, val networkAvailableCallBack: (connected
             }
 
             override fun onAvailable(network: Network?) {
-                Log.v("internet", "Now network $network is available")
+                Log.v("internet", "Now network $network is available. thread id ${Thread.currentThread()}")
                 networkAvailableInvoked = true
                 startPinging()
             }
@@ -62,29 +59,44 @@ class NetworkListener(context: Context, val networkAvailableCallBack: (connected
     }
 
     internal fun startPinging() {
+        Log.v("internet", "start pinging")
         pinger.ping {
             handlePingResult(it)
         }
     }
 
+    /**
+     * It may be situation when dome phisical device connected to internet, but we yet don't know about it.
+     * And, for example, if we are trying to check speed and we connect ot url, than it can help us identifying that network
+     * is available
+     */
+    internal fun connectedToSomeInternetResource(){
+//        if(!connectedToWorld){
+//            startPinging()
+//        }
+    }
+
     private fun handlePingResult(pingResult: PingResult) {
         when {
-            pingResult.errorMessage != null -> networkDisconnected()
+            pingResult.errorMessage != null -> {
+                Log.w("internte","error message = ${pingResult.errorMessage}")
+                networkDisconnected()
+            }
             pingResult.packetsReceived!! > 0 -> networkConnected()
             else -> networkConnected()
         }
     }
 
     private fun networkDisconnected() {
-        if (networkConnected) {
-            networkConnected = false
+        if (connectedToWorld == null || connectedToWorld!!) {
+            connectedToWorld = false
             networkAvailableCallBack(false)
         }
     }
 
     private fun networkConnected() {
-        if (!networkConnected) {
-            networkConnected = true
+        if (connectedToWorld == null || !connectedToWorld!!) {
+            connectedToWorld = true
             networkAvailableCallBack(true)
         }
     }

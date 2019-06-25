@@ -1,5 +1,6 @@
-package com.gusakov.library.internet
+package com.gusakov.library.internet.speed_testing
 
+import android.util.Log
 import java.io.IOException
 import java.io.InputStream
 import java.net.URL
@@ -28,7 +29,7 @@ enum class InformationUnit {
     BYTE, KILOBYTE, MEGABYTE, MEGABIT, GIGABYTE
 }
 
-class SpeedTester(
+internal class SpeedTester(
     val downloadableFile: DownloadableFile,
     val speedTesterOptions: SpeedTesterOptions = SpeedTesterOptions()
 ) {
@@ -37,7 +38,7 @@ class SpeedTester(
      * Return speed test in informationUnit per second. Or return -1 if error occurred
      */
     @Throws(IOException::class)
-    fun test(): Float {
+    fun test(intermediateResult: IntermediateResult): Float {
         val url = URL(downloadableFile.url);
         var stream: InputStream? = null
         var connection: HttpsURLConnection? = null
@@ -45,8 +46,9 @@ class SpeedTester(
         var endTimeMs: Long? = null
         val bytesSize = downloadableFile.getSizeInBytes()
         try {
-
+            Log.v("speedtest","openning connection")
             connection = url.openConnection() as HttpsURLConnection
+            Log.v("speedtest","connection opend")
             // Timeout for reading InputStream arbitrarily set to 3000ms.
             connection.readTimeout = speedTesterOptions.readTimeOutMs
             // Timeout for connection.connect() arbitrarily set to 3000ms.
@@ -57,14 +59,20 @@ class SpeedTester(
             // is carrying an input (response) body.
             connection.doInput = true
             // Open communications link (network traffic occurs here).
+            Log.v("speedtest","connecting")
             connection.connect()
+            Log.v("speedtest","connected")
+            intermediateResult.connected()
             val responseCode = connection.responseCode
             if (responseCode != HttpsURLConnection.HTTP_OK) {
                 throw IOException("HTTP error code: $responseCode")
             }
             // Retrieve the response body as an InputStream.
+            Log.v("speedtest","retrieving input stream")
             stream = connection.inputStream
+            Log.v("speedtest","retrieved input stream")
             if (stream != null) {
+                Log.v("speedtest","input stream is not null")
                 startTimeMs = System.currentTimeMillis()
                 readStream(stream, downloadableFile.getSizeInBytes())
                 endTimeMs = System.currentTimeMillis()
@@ -107,5 +115,9 @@ class SpeedTester(
             numBytes += readSize
             readSize = stream.read(buffer, numBytes, buffer.size - numBytes)
         }
+    }
+
+    internal interface IntermediateResult{
+        fun connected()
     }
 }
