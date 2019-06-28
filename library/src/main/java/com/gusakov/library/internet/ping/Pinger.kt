@@ -3,7 +3,6 @@ package com.gusakov.library.internet.ping
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
@@ -37,26 +36,27 @@ class Pinger private constructor(private val address: String) {
         return this
     }
 
-    fun ping(callBack: (pingResult: PingResult) -> Unit) = GlobalScope.launch(Dispatchers.Main) {
-        val result = withContext(Dispatchers.IO) {
-            var process: Process? = null
-            try {
-                process = Runtime.getRuntime()
-                    .exec("/system/bin/ping -c ${pingOptions.numberOfPackets} -w ${pingOptions.timeoutSec} $address")
-                val exitValue = process.waitFor()
-                // Success
-                if (exitValue == 0) {
-                    return@withContext InformationExtractor().extract(getStringFromStream(process.inputStream))
-                } else {
-                    return@withContext PingResult(errorMessage = "exit value is $exitValue, ${getStringFromStream(process.errorStream)}")
-                }
-            } catch (e: IOException) {
-                e.printStackTrace()
-                return@withContext PingResult(errorMessage = e.message)
-            } finally {
-                process?.destroy()
+    fun ping(callBack: (pingResult: PingResult) -> Unit) = GlobalScope.launch(Dispatchers.IO) {
+        var result: PingResult
+        var process: Process? = null
+        try {
+            process = Runtime.getRuntime()
+                .exec("/system/bin/ping -c ${pingOptions.numberOfPackets} -w ${pingOptions.timeoutSec} $address")
+            val exitValue = process.waitFor()
+            // Success
+            if (exitValue == 0) {
+                result = InformationExtractor().extract(getStringFromStream(process.inputStream))
+            } else {
+                result =
+                    PingResult(errorMessage = "exit value is $exitValue, ${getStringFromStream(process.errorStream)}")
             }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            result = PingResult(errorMessage = e.message)
+        } finally {
+            process?.destroy()
         }
+
         callBack(result)
     }
 

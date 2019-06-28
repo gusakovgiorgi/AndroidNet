@@ -4,15 +4,15 @@ import java.util.regex.Pattern
 
 class InformationExtractor {
 
-    val patternBytes = Pattern.compile("bytes from .+time=(\\d+\\.?\\d+)")
-    val patternOveral = Pattern.compile("(\\d+)\\s+packet[s]? transmitted.+(\\d+).+received")
+    val patternBytes:Pattern = Pattern.compile("bytes from .+time=(\\d+\\.?\\d+)")
+    val patternOveral:Pattern = Pattern.compile("(\\d+)\\s+packet[s]? transmitted.+(\\d+).+received")
 
     fun extract(pingMessage: String): PingResult {
         println("ping message: $pingMessage")
         val times = mutableListOf<Float>()
-        var packetsTransmitted: Int = 0
-        var packetsReceived: Int = 0
-        var timeStr: String? = null
+        var packetsTransmitted = 0
+        var packetsReceived = 0
+        var timeStr: String?
         try {
             var matcher = patternBytes.matcher(pingMessage)
             while (matcher.find()) {

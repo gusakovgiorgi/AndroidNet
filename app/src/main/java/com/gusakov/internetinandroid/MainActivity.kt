@@ -12,16 +12,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val internetModule = InternetModule.Builder(this).build()
+        val internetModule = InternetModule.Builder().build()
         tv_internet_info.movementMethod = ScrollingMovementMethod()
-        internetModule.startListening(this) {
-            if (it) {
-                tv_internet_info.append("\ninternet is connected to world")
-                Log.e("test","internet is connected to world")
+        internetModule.startListening(this) { physicallyConnected: Boolean, connectedToWorld: Boolean ->
+            if (connectedToWorld) {
+                tv_internet_info.append("\ninternet is connected to world. Physically connected = $physicallyConnected\"")
+                Log.e("test", "internet is connected to world. Physically connected = $physicallyConnected\"")
             } else {
-                tv_internet_info.append("\ninternet is not connected to world")
-                Log.e("test","internet is not connected to world")
-
+                tv_internet_info.append("\ninternet is not connected to world. Physically connected = $physicallyConnected")
+                Log.e("test", "internet is not connected to world. Physically connected = $physicallyConnected\"")
             }
         }
         btn_test_internet_speed.setOnClickListener {
@@ -29,6 +28,9 @@ class MainActivity : AppCompatActivity() {
             internetModule.getInternetSpeed { unitPerSecond, unit ->
                 tv_internet_info.append("\ninternet speed is $unitPerSecond ${unit.name}/s")
             }
+        }
+        btn_check_now.setOnClickListener {
+            internetModule.checkNow()
         }
     }
 }

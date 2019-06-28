@@ -1,12 +1,12 @@
 package com.gusakov.library.internet
 
+import android.annotation.SuppressLint
 import android.content.Context
-import android.content.IntentFilter
-import android.net.ConnectivityManager
 import android.os.Build
 import android.util.Log
-import com.gusakov.library.internet.ping.PingResult
-import com.gusakov.library.internet.ping.Pinger
+import com.gusakov.library.internet.network.NetworkListener
+import com.gusakov.library.internet.network.NetworkListenerImpl
+import com.gusakov.library.internet.network.OldNetworkListenerImpl
 import com.gusakov.library.internet.speed_testing.DownloadableFile
 import com.gusakov.library.internet.speed_testing.InformationUnit
 import com.gusakov.library.internet.speed_testing.SpeedTester
@@ -17,11 +17,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-class InternetModule private constructor(val context: Context) {
-    private val listenersMap: MutableMap<Context, (_: Boolean) -> Unit> = mutableMapOf()
+class InternetModule(private val config: InternetConfiguration) {
+    private val listenersMap: MutableMap<Context, (arg1: Boolean, arg2: Boolean) -> Unit> = mutableMapOf()
     private var networkListener: NetworkListener? = null
 
     companion object {
+        @SuppressLint("StaticFieldLeak")
         private var INSTANCE: InternetModule? = null
 
         fun getInstance(): InternetModule {
@@ -29,7 +30,7 @@ class InternetModule private constructor(val context: Context) {
         }
     }
 
-    fun startListening(context: Context, callback: (internetConnected: Boolean) -> Unit) {
+    fun startListening(context: Context, callback: (physicallyConnected: Boolean, connectedToWorld: Boolean) -> Unit) {
         listenersMap[context] = callback
         if (networkListener == null) {
             initializeNetworkListener(context)
@@ -37,23 +38,45 @@ class InternetModule private constructor(val context: Context) {
     }
 
     private fun initializeNetworkListener(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            networkListener = NetworkListener(context.applicationContext) {
-                listenersMap.values.forEach { callback ->
-                    callback(it)
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
+            networkListener =
+                NetworkListenerImpl(
+                    context.applicationContext,
+                    config
+                ) { physicalConn: Boolean, internetConn: Boolean ->
+                    notifyListeners(physicalConn, internetConn)
                 }
-            }
         } else {
-            context.registerReceiver(NetworkReceiver(), IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+            networkListener =
+                OldNetworkListenerImpl(
+                    context.applicationContext,
+                    config
+                ) { physicalConn: Boolean, internetConn: Boolean ->
+                    notifyListeners(physicalConn, internetConn)
+                }
+        }
+    }
+
+    private fun notifyListeners(physicallyConnected: Boolean, internetConnected: Boolean) {
+        listenersMap.values.forEach { callback ->
+            callback(physicallyConnected, internetConnected)
         }
     }
 
     fun removeListeners(context: Context) {
         listenersMap.remove(context)
+        if (listenersMap.isEmpty()) {
+            networkListener?.clear()
+            networkListener = null
+        }
     }
 
     init {
         INSTANCE = this
+    }
+
+    fun checkNow() {
+        networkListener?.checkOnlineConnection()
     }
 
     fun getInternetSpeed(
@@ -66,20 +89,36 @@ class InternetModule private constructor(val context: Context) {
             var result = -1F
             try {
                 result = withContext(Dispatchers.IO) {
-                    tester.test(object :SpeedTester.IntermediateResult{
+                    tester.test(object : SpeedTester.IntermediateResult {
                         override fun connected() {
-                            Log.v("test","get intermediate result in thread ${Thread.currentThread()}")
+                            Log.v("test", "get intermediate result in thread ${Thread.currentThread()}")
+                            networkListener?.connectedToSomeInternetResource()
                         }
                     })
                 }
             } catch (e: IOException) {
                 e.printStackTrace()
+                networkListener?.notConnectedToSomeInternetResource()
             }
             callback(result, downloadableFile.informationUnit)
         }
     }
 
-    class Builder(val context: Context) {
-        fun build() = InternetModule(context)
+    class Builder {
+        val internetConfiguration: InternetConfiguration
+
+        init {
+            internetConfiguration = InternetConfiguration()
+        }
+
+        /**
+         * Library decide is internet available or not bia checking address availability. Standard checking address
+         * is 8.8.8.8 but you can set your own as domain or via ip address
+         */
+        fun internetAvailabilityProofAddress(address: String) {
+            internetConfiguration.address = address
+        }
+
+        fun build() = InternetModule(internetConfiguration)
     }
 }

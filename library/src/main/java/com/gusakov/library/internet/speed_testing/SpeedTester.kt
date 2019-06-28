@@ -39,7 +39,7 @@ internal class SpeedTester(
      */
     @Throws(IOException::class)
     fun test(intermediateResult: IntermediateResult): Float {
-        val url = URL(downloadableFile.url);
+        val url = URL(downloadableFile.url)
         var stream: InputStream? = null
         var connection: HttpsURLConnection? = null
         var startTimeMs: Long? = null
