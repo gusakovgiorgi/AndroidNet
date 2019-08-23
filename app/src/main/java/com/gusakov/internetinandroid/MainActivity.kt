@@ -29,8 +29,8 @@ class MainActivity : AppCompatActivity() {
                 tv_internet_info.append("\ninternet speed is $unitPerSecond ${unit.name}/s")
             }
         }
-        btn_check_now.setOnClickListener {
-            internetModule.checkNow()
+        btn_recheck_now.setOnClickListener {
+            internetModule.recheckConnection()
         }
     }
 }

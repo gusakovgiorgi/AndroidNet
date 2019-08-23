@@ -18,7 +18,8 @@ import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class InternetModule(private val config: InternetConfiguration) {
-    private val listenersMap: MutableMap<Context, (arg1: Boolean, arg2: Boolean) -> Unit> = mutableMapOf()
+    private val listenersMap: MutableMap<Context, (arg1: Boolean, arg2: Boolean) -> Unit> =
+        mutableMapOf()
     private var networkListener: NetworkListener? = null
 
     companion object {
@@ -30,7 +31,10 @@ class InternetModule(private val config: InternetConfiguration) {
         }
     }
 
-    fun startListening(context: Context, callback: (physicallyConnected: Boolean, connectedToWorld: Boolean) -> Unit) {
+    fun startListening(
+        context: Context,
+        callback: (physicallyConnected: Boolean, connectedToWorld: Boolean) -> Unit
+    ) {
         listenersMap[context] = callback
         if (networkListener == null) {
             initializeNetworkListener(context)
@@ -38,7 +42,7 @@ class InternetModule(private val config: InternetConfiguration) {
     }
 
     private fun initializeNetworkListener(context: Context) {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.N) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             networkListener =
                 NetworkListenerImpl(
                     context.applicationContext,
@@ -75,7 +79,11 @@ class InternetModule(private val config: InternetConfiguration) {
         INSTANCE = this
     }
 
-    fun checkNow() {
+    /**
+     * Recheck the connection. For example, if it is still connected to remote access point but not
+     * connected to www anymore
+     */
+    fun recheckConnection() {
         networkListener?.checkOnlineConnection()
     }
 
@@ -91,7 +99,10 @@ class InternetModule(private val config: InternetConfiguration) {
                 result = withContext(Dispatchers.IO) {
                     tester.test(object : SpeedTester.IntermediateResult {
                         override fun connected() {
-                            Log.v("test", "get intermediate result in thread ${Thread.currentThread()}")
+                            Log.v(
+                                "test",
+                                "get intermediate result in thread ${Thread.currentThread()}"
+                            )
                             networkListener?.connectedToSomeInternetResource()
                         }
                     })

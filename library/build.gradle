@@ -1,5 +1,24 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
+apply plugin: 'com.novoda.bintray-release' // must be applied after your artifact generating plugin (eg. java / com.android.library)
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.novoda:bintray-release:0.9.1'
+    }
+}
+publish {
+    userOrg = 'hasana7'
+    groupId = 'com.gusakov'
+    artifactId = 'internetinandroid'
+    repoName = 'android-net'
+    publishVersion = '0.0.1'
+    desc = 'This is internet library for Android'
+    website = 'https://github.com/gusakovgiorgi/AndroidNet'
+}
 
 android {
     compileSdkVersion 28

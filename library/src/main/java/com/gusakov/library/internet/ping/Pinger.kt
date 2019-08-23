@@ -1,8 +1,9 @@
 package com.gusakov.library.internet.ping
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.newSingleThreadContext
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
@@ -36,29 +37,34 @@ class Pinger private constructor(private val address: String) {
         return this
     }
 
-    fun ping(callBack: (pingResult: PingResult) -> Unit) = GlobalScope.launch(Dispatchers.IO) {
-        var result: PingResult
-        var process: Process? = null
-        try {
-            process = Runtime.getRuntime()
-                .exec("/system/bin/ping -c ${pingOptions.numberOfPackets} -w ${pingOptions.timeoutSec} $address")
-            val exitValue = process.waitFor()
-            // Success
-            if (exitValue == 0) {
-                result = InformationExtractor().extract(getStringFromStream(process.inputStream))
-            } else {
-                result =
-                    PingResult(errorMessage = "exit value is $exitValue, ${getStringFromStream(process.errorStream)}")
+    @ObsoleteCoroutinesApi
+    fun ping(callBack: (pingResult: PingResult) -> Unit) =
+        GlobalScope.launch(newSingleThreadContext("pingContext")) {
+            var result: PingResult
+            var process: Process? = null
+            try {
+                process = Runtime.getRuntime()
+                    .exec("/system/bin/ping -c ${pingOptions.numberOfPackets} -w ${pingOptions.timeoutSec} $address")
+                val exitValue = process.waitFor()
+                // Success
+                result = if (exitValue == 0) {
+                    InformationExtractor().extract(getStringFromStream(process.inputStream))
+                } else {
+                    PingResult(
+                        errorMessage = "exit value is $exitValue, ${getStringFromStream(
+                            process.errorStream
+                        )}"
+                    )
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+                result = PingResult(errorMessage = e.message)
+            } finally {
+                process?.destroy()
             }
-        } catch (e: IOException) {
-            e.printStackTrace()
-            result = PingResult(errorMessage = e.message)
-        } finally {
-            process?.destroy()
-        }
 
-        callBack(result)
-    }
+            callBack(result)
+        }
 
     private fun pingResultString(): String {
         try {
