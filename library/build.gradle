@@ -15,7 +15,7 @@ publish {
     groupId = 'com.gusakov'
     artifactId = 'internetinandroid'
     repoName = 'android-net'
-    publishVersion = '0.0.1'
+    publishVersion = '0.0.2'
     desc = 'This is internet library for Android'
     website = 'https://github.com/gusakovgiorgi/AndroidNet'
 }
